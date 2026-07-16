@@ -634,136 +634,63 @@ const Auditoria = () => {
                     <button className="btn-outline" onClick={handleOpenCreateAuditoria}>
                         <MdOutlineChecklist size={18} /> Registrar auditoría
                     </button>
-                    {activeDetailTab === 'inspecciones' && (
-                        <button className="btn-outline" onClick={handleOpenCreateInspeccion}>
-                            <MdAdd size={18} /> Registrar inspección
-                        </button>
-                    )}
                     <button className="btn-outline" onClick={handleOpenCreateIncidente}>
                         <MdWarningAmber size={18} /> Registrar incidente
                     </button>
                 </div>
             </div>
 
-            <div className="tabs-container">
-                <button 
-                    className={`tab-btn ${activeDetailTab === 'auditorias' ? 'active' : ''}`}
-                    onClick={() => setActiveDetailTab('auditorias')}
-                >
-                    Historial Auditorías
-                </button>
-                <button 
-                    className={`tab-btn ${activeDetailTab === 'inspecciones' ? 'active' : ''}`}
-                    onClick={() => setActiveDetailTab('inspecciones')}
-                >
-                    Inspecciones de Área
-                </button>
-            </div>
-
             <div className="top-layout">
                 <div className="left-column">
-                    {activeDetailTab === 'auditorias' ? (
-                        <div>
-                            <div className="section-title">
-                                <MdOutlineChecklist size={20} />
-                                HISTORIAL DE AUDITORÍAS (TABLE: AUDITORIA)
-                            </div>
-                            <div className="table-card">
-                                <table className="auditoria-table">
-                                    <thead>
-                                        <tr>
-                                            <th>EMPLEADO AUDITOR</th>
-                                            <th>FECHA</th>
-                                            <th>CALIFICACIÓN</th>
-                                            <th>OBSERVACIONES</th>
-                                            <th>ACCIONES</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {auditorias.length === 0 ? (
-                                            <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No hay auditorías registradas</td></tr>
-                                        ) : (
-                                            auditorias.map(aud => (
-                                                <tr key={aud.idAuditoria}>
-                                                    <td>
-                                                        <div className="auditor-info">
-                                                            <div className="avatar blue-bg">{aud.empleado?.nombreEmp?.charAt(0) || 'U'}</div>
-                                                            <span className="auditor-name">{aud.empleado?.nombreEmp}<br/>{aud.empleado?.apellidoEmp}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td>{new Date(aud.fechaAuditoria).toLocaleDateString()}</td>
-                                                    <td>
-                                                        <div className="rating">
-                                                            {renderStars(aud.calificacion)}
-                                                            <span className="rating-score">{aud.calificacion}.0</span>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <p className="obs-text">{aud.observacionesAud}</p>
-                                                    </td>
-                                                    <td>
-                                                        <button className="btn-table-edit" onClick={() => handleOpenEditAuditoria(aud)}>Editar</button>
-                                                        <button className="btn-table-delete" onClick={() => handleDeleteAuditoria(aud.idAuditoria)}>Eliminar</button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                    <div>
+                        <div className="section-title">
+                            <MdOutlineChecklist size={20} />
+                            HISTORIAL DE AUDITORÍAS (TABLE: AUDITORIA)
                         </div>
-                    ) : (
-                        <div>
-                            <div className="section-title">
-                                <MdOutlineChecklist size={20} />
-                                DETALLE DE INSPECCIONES DE ÁREA (TABLE: INSPECCION)
-                            </div>
-                            <div className="table-card">
-                                <table className="auditoria-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ÁREA INSPECCIONADA</th>
-                                            <th>RESULTADO</th>
-                                            <th>EVIDENCIA MONGO</th>
-                                            <th>ACCIONES</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {inspecciones.length === 0 ? (
-                                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px'}}>No hay inspecciones registradas</td></tr>
-                                        ) : (
-                                            inspecciones.map(insp => (
-                                                <tr key={insp.idInspeccion}>
-                                                    <td style={{fontWeight: 'bold'}}>{insp.areaInspeccionada}</td>
-                                                    <td>
-                                                        <span className={`status-badge status-${insp.resultadoInsp === 'Favorable' ? 'activo' : 'inactivo'}`}>
-                                                            {insp.resultadoInsp}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {insp.mongoDocIdInsp ? (
-                                                            <a 
-                                                                href={`http://localhost:8080/api/evidencias/view/${insp.mongoDocIdInsp}`} 
-                                                                target="_blank" 
-                                                                rel="noopener noreferrer"
-                                                                style={{display: 'flex', alignItems: 'center', gap: '4px', color: '#0b7a75', fontWeight: '600', textDecoration: 'none'}}
-                                                            >
-                                                                <MdVisibility /> Ver foto (MongoDB)
-                                                            </a>
-                                                        ) : 'Sin foto'}
-                                                    </td>
-                                                    <td>
-                                                        <button className="btn-table-edit" onClick={() => handleOpenEditInspeccion(insp)}>Editar</button>
-                                                        <button className="btn-table-delete" onClick={() => handleDeleteInspeccion(insp.idInspeccion)}>Eliminar</button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div className="table-card">
+                            <table className="auditoria-table">
+                                <thead>
+                                    <tr>
+                                        <th>EMPLEADO AUDITOR</th>
+                                        <th>FECHA</th>
+                                        <th>CALIFICACIÓN</th>
+                                        <th>OBSERVACIONES</th>
+                                        <th>ACCIONES</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {auditorias.length === 0 ? (
+                                        <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No hay auditorías registradas</td></tr>
+                                    ) : (
+                                        auditorias.map(aud => (
+                                            <tr key={aud.idAuditoria}>
+                                                <td>
+                                                    <div className="auditor-info">
+                                                        <div className="avatar blue-bg">{aud.empleado?.nombreEmp?.charAt(0) || 'U'}</div>
+                                                        <span className="auditor-name">{aud.empleado?.nombreEmp}<br/>{aud.empleado?.apellidoEmp}</span>
+                                                    </div>
+                                                </td>
+                                                <td>{new Date(aud.fechaAuditoria).toLocaleDateString()}</td>
+                                                <td>
+                                                    <div className="rating">
+                                                        {renderStars(aud.calificacion)}
+                                                        <span className="rating-score">{aud.calificacion}.0</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <p className="obs-text">{aud.observacionesAud}</p>
+                                                </td>
+                                                <td>
+                                                    <button className="btn-table-edit" onClick={() => handleOpenEditAuditoria(aud)}>Editar</button>
+                                                    <button className="btn-table-delete" onClick={() => handleDeleteAuditoria(aud.idAuditoria)}>Eliminar</button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
 
