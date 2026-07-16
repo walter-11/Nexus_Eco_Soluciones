@@ -18,6 +18,11 @@ const OrdenesTrabajo = () => {
     const [priorityFilter, setPriorityFilter] = useState('ALL');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [clientFilter, setClientFilter] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, priorityFilter, statusFilter, clientFilter]);
     const [filterClientes, setFilterClientes] = useState([]);
 
     const [form, setForm] = useState({
@@ -185,6 +190,12 @@ const OrdenesTrabajo = () => {
             return matchesSearch && matchesPriority && matchesStatus && matchesClient;
         });
 
+        const itemsPerPage = 15;
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentOTs = filteredOTs.slice(indexOfFirstItem, indexOfLastItem);
+        const totalPages = Math.ceil(filteredOTs.length / itemsPerPage);
+
         const handleClearFilters = () => {
             setSearchQuery('');
             setPriorityFilter('ALL');
@@ -285,7 +296,7 @@ const OrdenesTrabajo = () => {
                             ) : filteredOTs.length === 0 ? (
                                 <tr><td colSpan="6" style={{ textAlign: 'center' }}>No se encontraron órdenes de trabajo con los filtros aplicados.</td></tr>
                             ) : (
-                                filteredOTs.map(ot => (
+                                currentOTs.map(ot => (
                                     <tr key={ot.idOrdenTrabajo}>
                                         <td style={{ fontWeight: '600' }}>{formatOT(ot.idOrdenTrabajo)}</td>
                                         <td>{ot.ordenServicio ? formatOS(ot.ordenServicio.idOrdenServicio) : '-'}</td>
@@ -310,6 +321,28 @@ const OrdenesTrabajo = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {totalPages > 1 && (
+                    <div className="pagination-bar">
+                        <button 
+                            disabled={currentPage === 1} 
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="pagination-btn"
+                        >
+                            Anterior
+                        </button>
+                        <span className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages} 
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="pagination-btn"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }
@@ -400,7 +433,7 @@ const OrdenesTrabajo = () => {
                         </select>
                     </div>
                     <div className="form-group">
-                        <label>Estado (Automatizado)</label>
+                        <label>Estado</label>
                         <input 
                             type="text" 
                             name="estadoOt" 

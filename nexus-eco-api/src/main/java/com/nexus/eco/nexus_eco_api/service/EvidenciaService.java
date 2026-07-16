@@ -27,4 +27,8 @@ public class EvidenciaService {
     public Optional<Evidencia> getEvidencia(String id) {
         return evidenciaRepository.findById(id);
     }
+
+    public Evidencia save(Evidencia evidencia) {
+        return evidenciaRepository.save(evidencia);
+    }
 }

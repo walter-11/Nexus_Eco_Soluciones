@@ -9,9 +9,13 @@ const Empleados = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
 
-    // Filters state
     const [searchQuery, setSearchQuery] = useState('');
     const [areaFilter, setAreaFilter] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, areaFilter]);
 
     const [form, setForm] = useState({
         nombreEmp: '',
@@ -114,6 +118,12 @@ const Empleados = () => {
         return matchesSearch && matchesArea;
     });
 
+    const itemsPerPage = 15;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentEmpleados = filteredEmpleados.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredEmpleados.length / itemsPerPage);
+
     const handleClearFilters = () => {
         setSearchQuery('');
         setAreaFilter('ALL');
@@ -186,7 +196,7 @@ const Empleados = () => {
                         ) : filteredEmpleados.length === 0 ? (
                             <tr><td colSpan="6" style={{ textAlign: 'center' }}>No se encontraron empleados con los filtros aplicados.</td></tr>
                         ) : (
-                            filteredEmpleados.map(emp => (
+                            currentEmpleados.map(emp => (
                                 <tr key={emp.idEmpleado}>
                                     <td>{emp.idEmpleado}</td>
                                     <td>{emp.nombreEmp}</td>
@@ -203,6 +213,28 @@ const Empleados = () => {
                     </tbody>
                 </table>
             </div>
+
+            {totalPages > 1 && (
+                <div className="pagination-bar">
+                    <button 
+                        disabled={currentPage === 1} 
+                        onClick={() => setCurrentPage(prev => prev - 1)}
+                        className="pagination-btn"
+                    >
+                        Anterior
+                    </button>
+                    <span className="pagination-info">
+                        Página {currentPage} de {totalPages}
+                    </span>
+                    <button 
+                        disabled={currentPage === totalPages} 
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                        className="pagination-btn"
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            )}
 
             {showModal && (
                 <div className="modal-overlay">

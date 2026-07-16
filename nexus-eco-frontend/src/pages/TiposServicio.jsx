@@ -22,6 +22,11 @@ const TiposServicio = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [minPrice, setMinPrice] = useState('');
     const [maxPrice, setMaxPrice] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, minPrice, maxPrice]);
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({
         resolver: yupResolver(schema),
@@ -119,6 +124,12 @@ const TiposServicio = () => {
         return matchesSearch && matchesMin && matchesMax;
     });
 
+    const itemsPerPage = 15;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentTipos = filteredTipos.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredTipos.length / itemsPerPage);
+
     const handleClearFilters = () => {
         setSearchQuery('');
         setMinPrice('');
@@ -198,7 +209,7 @@ const TiposServicio = () => {
                         ) : filteredTipos.length === 0 ? (
                             <tr><td colSpan="5" style={{ textAlign: 'center' }}>No se encontraron servicios con los filtros aplicados.</td></tr>
                         ) : (
-                            filteredTipos.map(t => (
+                            currentTipos.map(t => (
                                 <tr key={t.idTipoServicio}>
                                     <td>{t.idTipoServicio}</td>
                                     <td style={{ fontWeight: '600' }}>{t.nombreServicio}</td>
@@ -214,6 +225,28 @@ const TiposServicio = () => {
                     </tbody>
                 </table>
             </div>
+
+            {totalPages > 1 && (
+                <div className="pagination-bar">
+                    <button 
+                        disabled={currentPage === 1} 
+                        onClick={() => setCurrentPage(prev => prev - 1)}
+                        className="pagination-btn"
+                    >
+                        Anterior
+                    </button>
+                    <span className="pagination-info">
+                        Página {currentPage} de {totalPages}
+                    </span>
+                    <button 
+                        disabled={currentPage === totalPages} 
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                        className="pagination-btn"
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            )}
 
             {showModal && (
                 <div className="modal-overlay">

@@ -47,6 +47,18 @@ export const uploadEvidencia = (file) => {
     });
 };
 
+export const uploadMultipleEvidencias = (files) => {
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+    }
+    return api.post('/evidencias/upload-multiple', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    });
+};
+
 // Empleados API
 export const getEmpleados = () => api.get('/empleados');
 export const createEmpleado = (data) => api.post('/empleados', data);

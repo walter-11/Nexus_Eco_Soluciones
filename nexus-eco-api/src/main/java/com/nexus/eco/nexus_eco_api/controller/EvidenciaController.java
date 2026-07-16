@@ -35,6 +35,44 @@ public class EvidenciaController {
         }
     }
 
+    @PostMapping("/upload-multiple")
+    public ResponseEntity<?> uploadMultipleFiles(@RequestParam("files") MultipartFile[] files) {
+        try {
+            if (files == null || files.length == 0) {
+                return ResponseEntity.badRequest().body("No files uploaded");
+            }
+
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos);
+
+            for (MultipartFile file : files) {
+                java.util.zip.ZipEntry entry = new java.util.zip.ZipEntry(file.getOriginalFilename());
+                zos.putNextEntry(entry);
+                zos.write(file.getBytes());
+                zos.closeEntry();
+            }
+            zos.finish();
+            zos.close();
+
+            byte[] zipData = baos.toByteArray();
+
+            Evidencia evidencia = new Evidencia();
+            evidencia.setNombreArchivo("evidencias_ejecucion.zip");
+            evidencia.setTipoArchivo("application/zip");
+            evidencia.setTamanio((long) zipData.length);
+            evidencia.setDatos(zipData);
+
+            Evidencia saved = evidenciaService.save(evidencia);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("mongo_doc_id", saved.getId());
+            response.put("nombre", saved.getNombreArchivo());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error zipping and uploading files: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<byte[]> downloadFile(@PathVariable String id) {
         Optional<Evidencia> evidenciaOpt = evidenciaService.getEvidencia(id);

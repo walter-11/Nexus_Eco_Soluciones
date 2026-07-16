@@ -74,10 +74,28 @@ public class EjecucionServicioController {
                     if (es.getMongoDocId() != null) {
                         evidenciaService.getEvidencia(es.getMongoDocId()).ifPresent(ev -> {
                             try {
-                                java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry("evidencia-ejecucion-" + ev.getNombreArchivo());
-                                zipOut.putNextEntry(zipEntry);
-                                zipOut.write(ev.getDatos());
-                                zipOut.closeEntry();
+                                if ("application/zip".equals(ev.getTipoArchivo())) {
+                                    java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(ev.getDatos());
+                                    java.util.zip.ZipInputStream zis = new java.util.zip.ZipInputStream(bais);
+                                    java.util.zip.ZipEntry entry;
+                                    while ((entry = zis.getNextEntry()) != null) {
+                                        java.util.zip.ZipEntry newEntry = new java.util.zip.ZipEntry(entry.getName());
+                                        zipOut.putNextEntry(newEntry);
+                                        byte[] buffer = new byte[1024];
+                                        int len;
+                                        while ((len = zis.read(buffer)) > 0) {
+                                            zipOut.write(buffer, 0, len);
+                                        }
+                                        zipOut.closeEntry();
+                                        zis.closeEntry();
+                                    }
+                                    zis.close();
+                                } else {
+                                    java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry("evidencia-ejecucion-" + ev.getNombreArchivo());
+                                    zipOut.putNextEntry(zipEntry);
+                                    zipOut.write(ev.getDatos());
+                                    zipOut.closeEntry();
+                                }
                             } catch (Exception e) {}
                         });
                     }

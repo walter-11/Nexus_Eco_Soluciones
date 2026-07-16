@@ -24,6 +24,11 @@ const Planificacion = () => {
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
     const [districtFilter, setDistrictFilter] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, startDateFilter, endDateFilter, districtFilter]);
 
     // Details Modal State
     const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -327,6 +332,12 @@ const Planificacion = () => {
         return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate && matchesDistrict;
     });
 
+    const itemsPerPage = 15;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentPlanificaciones = filteredPlanificaciones.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredPlanificaciones.length / itemsPerPage);
+
     const handleClearFilters = () => {
         setSearchQuery('');
         setStatusFilter('ALL');
@@ -334,6 +345,53 @@ const Planificacion = () => {
         setEndDateFilter('');
         setDistrictFilter('ALL');
     };
+
+    const getFilteredTecnicos = () => {
+        if (!form.idOrdenServicio) {
+            return tecnicos;
+        }
+        const selectedOrderObj = ordenes.find(o => o.idOrdenServicio.toString() === form.idOrdenServicio.toString());
+        const serviceNames = selectedOrderObj?.detalles?.map(d => d.tipoServicio?.nombreServicio).filter(Boolean) || [];
+        
+        if (serviceNames.length === 0) {
+            return tecnicos;
+        }
+
+        const isSimilar = (specName, srvNames) => {
+            if (!specName) return false;
+            const spec = specName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return srvNames.some(srvName => {
+                const srv = srvName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                
+                // 1. Insectos/Desinsectacion
+                if (spec.includes("insecto") && (srv.includes("insect") || srv.includes("termit") || srv.includes("plaga") || srv.includes("polilla") || srv.includes("murcielago"))) return true;
+                
+                // 2. Roedores/Desratizacion
+                if (spec.includes("roedor") && (srv.includes("roedor") || srv.includes("rat") || srv.includes("plaga") || srv.includes("ave") || srv.includes("murcielago"))) return true;
+                
+                // 3. Desinfeccion/Sanitizacion
+                if (spec.includes("desinfecc") && (srv.includes("desinfecc") || srv.includes("sanitiz") || srv.includes("agua") || srv.includes("pozo") || srv.includes("trampa"))) return true;
+                
+                // 4. Altura
+                if (spec.includes("altura") && (srv.includes("altura") || srv.includes("alta") || srv.includes("techo") || srv.includes("fachada") || srv.includes("ducto"))) return true;
+                
+                // 5. Sustancias Quimicas / Manejo
+                if (spec.includes("quimic") && (srv.includes("quimic") || srv.includes("fumig") || srv.includes("grano") || srv.includes("madera") || srv.includes("contenedor"))) return true;
+
+                // 6. General / Operaciones / General specialty
+                if (spec.includes("general") || spec.includes("operaciones") || spec === "general") return true;
+
+                // Basic word match
+                const specWords = spec.split(/\s+/).filter(w => w.length > 3);
+                const srvWords = srv.split(/\s+/).filter(w => w.length > 3);
+                return specWords.some(sw => srvWords.some(rw => rw.includes(sw) || sw.includes(rw)));
+            });
+        };
+
+        return tecnicos.filter(t => isSimilar(t.especialidad?.nombreEspec, serviceNames));
+    };
+
+    const filteredTecnicos = getFilteredTecnicos();
 
     return (
         <div className="planificacion-page">
@@ -436,7 +494,7 @@ const Planificacion = () => {
                                 ) : filteredPlanificaciones.length === 0 ? (
                                     <tr><td colSpan="7" style={{ textAlign: 'center' }}>No se encontraron planificaciones con los filtros aplicados.</td></tr>
                                 ) : (
-                                    filteredPlanificaciones.map(p => {
+                                    currentPlanificaciones.map(p => {
                                         const canEditDelete = p.estadoPlan === 'PROGRAMADO';
                                         return (
                                             <tr key={p.idPlanificacionServicio}>
@@ -468,6 +526,28 @@ const Planificacion = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {totalPages > 1 && (
+                        <div className="pagination-bar">
+                            <button 
+                                disabled={currentPage === 1} 
+                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                className="pagination-btn"
+                            >
+                                Anterior
+                            </button>
+                            <span className="pagination-info">
+                                Página {currentPage} de {totalPages}
+                            </span>
+                            <button 
+                                disabled={currentPage === totalPages} 
+                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                className="pagination-btn"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    )}
                 </>
             ) : (
                 <div className="form-container">
@@ -530,7 +610,7 @@ const Planificacion = () => {
                                 {formErrors.horaInicio && <span className="error-message">{formErrors.horaInicio}</span>}
                             </div>
                             <div className="form-group">
-                                <label>Estado (Automatizado)</label>
+                                <label>Estado</label>
                                 <input 
                                     type="text" 
                                     name="estadoPlan" 
@@ -611,10 +691,14 @@ const Planificacion = () => {
                         </div>
                         {formErrors.tecnicos && <span className="error-message" style={{ display: 'block', marginBottom: '15px' }}>{formErrors.tecnicos}</span>}
                         <div className="technicians-grid">
-                            {tecnicos.length === 0 ? (
-                                <p style={{ fontSize: '14px', color: '#64748b' }}>No hay técnicos disponibles. Registre algunos en la sección Técnicos primero.</p>
+                            {filteredTecnicos.length === 0 ? (
+                                <p style={{ fontSize: '14px', color: '#64748b' }}>
+                                    {form.idOrdenServicio 
+                                        ? "No hay técnicos activos con especialidad afín a los servicios de esta orden." 
+                                        : "No hay técnicos disponibles. Registre algunos en la sección Técnicos primero."}
+                                </p>
                             ) : (
-                                tecnicos.map(t => (
+                                filteredTecnicos.map(t => (
                                     <label key={t.idTecnico} className="tech-checkbox-label">
                                         <input 
                                             type="checkbox" 

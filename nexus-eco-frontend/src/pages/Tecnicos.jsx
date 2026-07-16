@@ -13,6 +13,11 @@ const Tecnicos = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [specFilter, setSpecFilter] = useState('ALL');
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, specFilter, statusFilter, activeTab]);
 
     // Modal state for Tecnicos
     const [showTecnicoModal, setShowTecnicoModal] = useState(false);
@@ -205,6 +210,12 @@ const Tecnicos = () => {
         return matchesSearch && matchesSpec && matchesStatus;
     });
 
+    const itemsPerPage = 15;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentTecnicos = filteredTecnicos.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredTecnicos.length / itemsPerPage);
+
     const handleClearFilters = () => {
         setSearchQuery('');
         setSpecFilter('ALL');
@@ -313,7 +324,7 @@ const Tecnicos = () => {
                                 ) : filteredTecnicos.length === 0 ? (
                                     <tr><td colSpan="6" style={{ textAlign: 'center' }}>No se encontraron técnicos con los filtros aplicados.</td></tr>
                                 ) : (
-                                    filteredTecnicos.map(tec => (
+                                    currentTecnicos.map(tec => (
                                         <tr key={tec.idTecnico}>
                                             <td>{tec.idTecnico}</td>
                                             <td>{tec.nombreTec}</td>
@@ -334,6 +345,28 @@ const Tecnicos = () => {
                             </tbody>
                         </table>
                     </div>
+
+                    {totalPages > 1 && (
+                        <div className="pagination-bar" style={{ marginTop: '16px' }}>
+                            <button 
+                                disabled={currentPage === 1} 
+                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                className="pagination-btn"
+                            >
+                                Anterior
+                            </button>
+                            <span className="pagination-info">
+                                Página {currentPage} de {totalPages}
+                            </span>
+                            <button 
+                                disabled={currentPage === totalPages} 
+                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                className="pagination-btn"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    )}
                 </>
             ) : (
                 <div className="table-container">

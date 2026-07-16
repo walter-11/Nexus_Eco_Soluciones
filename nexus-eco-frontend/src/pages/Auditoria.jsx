@@ -40,6 +40,11 @@ const Auditoria = () => {
     // Filters state
     const [searchQuery, setSearchQuery] = useState('');
     const [resultFilter, setResultFilter] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, resultFilter]);
     
     // Detail Data
     const [auditorias, setAuditorias] = useState([]);
@@ -446,6 +451,12 @@ const Auditoria = () => {
             return matchesSearch && matchesResult;
         });
 
+        const itemsPerPage = 15;
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentEjecuciones = filteredEjecuciones.slice(indexOfFirstItem, indexOfLastItem);
+        const totalPages = Math.ceil(filteredEjecuciones.length / itemsPerPage);
+
         const handleClearFilters = () => {
             setSearchQuery('');
             setResultFilter('ALL');
@@ -512,7 +523,7 @@ const Auditoria = () => {
                             ) : filteredEjecuciones.length === 0 ? (
                                 <tr><td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>No se encontraron ejecuciones con los filtros aplicados.</td></tr>
                             ) : (
-                                filteredEjecuciones.map(ej => (
+                                currentEjecuciones.map(ej => (
                                     <tr key={ej.idEjecucionServicio} style={{borderBottom: '1px solid #f1f5f9'}}>
                                         <td style={{padding: '16px', fontWeight: 'bold'}}>{formatOS(ej.planificacionServicio?.ordenServicio?.idOrdenServicio || ej.idEjecucionServicio)}</td>
                                         <td style={{padding: '16px'}}>{new Date(ej.fechaEjecucion).toLocaleDateString()}</td>
@@ -536,14 +547,16 @@ const Auditoria = () => {
                                                 );
                                             })()}
                                         </td>
-                                        <td style={{padding: '16px'}}>{ej.planificacionServicio?.ordenServicio?.solicitudServicio?.cliente?.razonSocial || '-'}</td>
+                                        <td style={{padding: '16px'}}>{ej.planificacionServicio?.ordenServicio?.solicitudServicio?.cliente?.razonSocial || 'N/A'}</td>
                                         <td style={{padding: '16px'}}>
                                             <button 
-                                                className="btn-outline" 
-                                                style={{padding: '6px 12px', fontSize: '12px'}}
-                                                onClick={() => handleSelectEjecucion(ej)}
+                                                className="btn-table-edit"
+                                                onClick={() => {
+                                                    setSelectedEjecucion(ej);
+                                                    setView('detail');
+                                                }}
                                             >
-                                                Ver Auditoría
+                                                Auditar / Incidentes
                                             </button>
                                         </td>
                                     </tr>
@@ -552,6 +565,28 @@ const Auditoria = () => {
                         </tbody>
                     </table>
                 </div>
+                
+                {totalPages > 1 && (
+                    <div className="pagination-bar" style={{padding: '20px', display: 'flex', justifyContent: 'center', gap: '10px', alignItems: 'center'}}>
+                        <button 
+                            disabled={currentPage === 1} 
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="pagination-btn"
+                        >
+                            Anterior
+                        </button>
+                        <span className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages} 
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="pagination-btn"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }

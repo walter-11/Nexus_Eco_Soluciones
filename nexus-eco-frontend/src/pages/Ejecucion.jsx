@@ -5,7 +5,7 @@ import {
 } from 'react-icons/md';
 import { 
     getPlanificaciones, getEjecuciones, createEjecucion, 
-    updateEjecucion, uploadEvidencia 
+    updateEjecucion, uploadMultipleEvidencias 
 } from '../api/api';
 import './Ejecucion.css';
 
@@ -24,6 +24,11 @@ const Ejecucion = () => {
     const [resultFilter, setResultFilter] = useState('ALL');
     const [startDateFilter, setStartDateFilter] = useState('');
     const [endDateFilter, setEndDateFilter] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, resultFilter, startDateFilter, endDateFilter]);
     
     // Selected Context
     const [selectedPlan, setSelectedPlan] = useState(null);
@@ -46,6 +51,7 @@ const Ejecucion = () => {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
     const [formErrors, setFormErrors] = useState({});
+    const [selectedFiles, setSelectedFiles] = useState([]);
 
     useEffect(() => {
         if (view === 'list') {
@@ -92,30 +98,17 @@ const Ejecucion = () => {
                 archivoSubido: null
             });
         }
+        setSelectedFiles([]);
         setFormErrors({});
         setView('form');
     };
 
-    const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const handleFileChange = (e) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-        setUploading(true);
-        try {
-            const res = await uploadEvidencia(file);
-            setForm(prev => ({ 
-                ...prev, 
-                mongoDocId: res.data.mongo_doc_id,
-                archivoSubido: res.data.nombre
-            }));
-            setFormErrors(prev => ({ ...prev, mongoDocId: null }));
-            alert("Archivo subido a MongoDB Compass exitosamente");
-        } catch (error) {
-            console.error("Error uploading file", error);
-            alert("Error al subir el archivo.");
-        } finally {
-            setUploading(false);
-        }
+        setSelectedFiles(prev => [...prev, ...Array.from(files)]);
+        setFormErrors(prev => ({ ...prev, mongoDocId: null }));
     };
 
     const handleGuardarEjecucion = async () => {
@@ -134,33 +127,43 @@ const Ejecucion = () => {
             alert("Las observaciones no pueden contener caracteres HTML (< o >).");
             return;
         }
-        if (!form.mongoDocId) {
-            alert("Debe subir un archivo de evidencia (PDF o imagen) antes de guardar el registro.");
+        if (!form.mongoDocId && selectedFiles.length === 0) {
+            alert("Debe seleccionar al menos un archivo de evidencia (PDF o imagen) antes de guardar el registro.");
             return;
         }
 
+        setUploading(true);
+        let finalMongoDocId = form.mongoDocId;
+
         try {
+            if (selectedFiles.length > 0) {
+                const res = await uploadMultipleEvidencias(selectedFiles);
+                finalMongoDocId = res.data.mongo_doc_id;
+            }
+
             const payload = {
                 idEjecucionServicio: editingId,
                 fechaEjecucion: `${form.fechaEjecucion}T00:00:00`,
                 resultado: form.resultado,
                 observacionesEj: form.observacionesEj,
-                mongoDocId: form.mongoDocId,
+                mongoDocId: finalMongoDocId,
                 planificacionServicio: { idPlanificacionServicio: selectedPlan.idPlanificacionServicio }
             };
 
             if (editingId) {
                 await updateEjecucion(editingId, payload);
-                alert("Registro de ejecución actualizado correctamente!");
+                alert("Registro de ejecución guardado y evidencias comprimidas en MongoDB correctamente!");
             } else {
                 await createEjecucion(payload);
-                alert("Ejecución del servicio registrada correctamente!");
+                alert("Ejecución del servicio registrada y evidencias comprimidas en MongoDB correctamente!");
             }
             
             setView('list');
         } catch (error) {
             console.error("Error al guardar ejecución", error);
             alert("Ocurrió un error al guardar la ejecución en la base de datos.");
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -207,6 +210,12 @@ const Ejecucion = () => {
             
             return matchesSearch && matchesStatus && matchesResult && matchesStartDate && matchesEndDate;
         });
+
+        const itemsPerPage = 15;
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentPlanificaciones = filteredPlanificaciones.slice(indexOfFirstItem, indexOfLastItem);
+        const totalPages = Math.ceil(filteredPlanificaciones.length / itemsPerPage);
 
         const handleClearFilters = () => {
             setSearchQuery('');
@@ -307,7 +316,7 @@ const Ejecucion = () => {
                             ) : filteredPlanificaciones.length === 0 ? (
                                 <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>No se encontraron planificaciones con los filtros aplicados.</td></tr>
                             ) : (
-                                filteredPlanificaciones.map(p => {
+                                currentPlanificaciones.map(p => {
                                         const exec = executions.find(e => e.planificacionServicio?.idPlanificacionServicio === p.idPlanificacionServicio);
                                         const execId = exec ? (exec.idEjecucionService || exec.idEjecucionServicio) : null;
                                         
@@ -367,6 +376,28 @@ const Ejecucion = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {totalPages > 1 && (
+                    <div className="pagination-bar">
+                        <button 
+                            disabled={currentPage === 1} 
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="pagination-btn"
+                        >
+                            Anterior
+                        </button>
+                        <span className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages} 
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="pagination-btn"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
 
                 {/* Details Modal */}
                 {showDetailsModal && detailedPlan && detailedExecution && (
@@ -502,26 +533,64 @@ const Ejecucion = () => {
                             style={{ display: 'none' }} 
                             onChange={handleFileChange}
                             accept=".pdf,.jpg,.png,.jpeg"
+                            multiple
                         />
                         <MdCloudUpload size={32} className="dropzone-icon" />
-                        <h3>{uploading ? 'Subiendo...' : 'Haz clic para seleccionar archivo'}</h3>
-                        <p>JPG, PNG, PDF (Max 15MB)</p>
+                        <h3>{uploading ? 'Subiendo...' : 'Haz clic para seleccionar archivos'}</h3>
+                        <p>JPG, PNG, PDF (Max 15MB por archivo)</p>
                         <button className="btn-subir" onClick={(e) => { e.stopPropagation(); fileInputRef.current.click(); }} disabled={uploading}>
-                            {uploading ? 'Procesando...' : 'Seleccionar archivo'}
+                            {uploading ? 'Procesando...' : 'Seleccionar archivos'}
                         </button>
                     </div>
 
                     <div className="evidence-list" style={{ marginTop: '16px' }}>
-                        <div className="evidence-item">
-                            <div className="evidence-icon-wrapper blue-light">
-                                <MdPictureAsPdf size={20} className="icon-blue" />
+                        {form.archivoSubido && (
+                            <div className="evidence-item" style={{ marginBottom: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '4px' }}>
+                                <div className="evidence-icon-wrapper blue-light" style={{ background: '#dcfce7' }}>
+                                    <MdPictureAsPdf size={20} style={{ color: '#15803d' }} />
+                                </div>
+                                <div className="evidence-info">
+                                    <h4 style={{ color: '#15803d' }}>Evidencia Existente en MongoDB</h4>
+                                    <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>{form.archivoSubido}</p>
+                                    {selectedFiles.length > 0 && (
+                                        <div style={{ color: '#ea580c', fontSize: '11px', fontWeight: 'bold', marginTop: '6px' }}>
+                                            ⚠️ Nota: Estos archivos serán reemplazados por los nuevos seleccionados al guardar.
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <div className="evidence-info">
-                                <h4>Hoja de Servicio Firmada</h4>
-                                <p>{form.archivoSubido ? form.archivoSubido : 'Ningún archivo subido aún.'}</p>
-                                {form.mongoDocId && <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>ID Mongo: {form.mongoDocId}</span>}
+                        )}
+
+                        {selectedFiles.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                                <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#475569', fontWeight: 'bold' }}>Nuevos archivos seleccionados a subir:</h4>
+                                {selectedFiles.map((file, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '8px 12px', borderRadius: '4px', border: '1px solid #cbd5e1', marginBottom: '8px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <MdImage size={18} style={{ color: '#64748b' }} />
+                                            <span style={{ fontSize: '13px', color: '#334155', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>
+                                                {file.name}
+                                            </span>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+                                            }}
+                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                                            title="Quitar archivo"
+                                        >
+                                            <MdClose size={18} />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
-                        </div>
+                        )}
+
+                        {!form.archivoSubido && selectedFiles.length === 0 && (
+                            <p style={{ fontSize: '13px', color: '#64748b', margin: 0, textAlign: 'center' }}>Ningún archivo seleccionado o subido aún.</p>
+                        )}
                     </div>
                 </div>
             </div>

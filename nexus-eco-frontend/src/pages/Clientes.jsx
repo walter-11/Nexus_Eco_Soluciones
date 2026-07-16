@@ -24,12 +24,17 @@ const Clientes = () => {
     const [loading, setLoading] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [idContactoCliente, setIdContactoCliente] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Filters state
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [contactNameFilter, setContactNameFilter] = useState('');
     const [contactPhoneFilter, setContactPhoneFilter] = useState('');
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, contactNameFilter, contactPhoneFilter]);
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({
         resolver: yupResolver(schema),
@@ -149,6 +154,12 @@ const Clientes = () => {
             return matchesSearch && matchesStatus && matchesName && matchesPhone;
         });
 
+        const itemsPerPage = 15;
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentClientes = filteredClientes.slice(indexOfFirstItem, indexOfLastItem);
+        const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
+
         const handleClearFilters = () => {
             setSearchQuery('');
             setStatusFilter('ALL');
@@ -242,7 +253,7 @@ const Clientes = () => {
                             ) : filteredClientes.length === 0 ? (
                                 <tr><td colSpan="6" style={{ textAlign: 'center' }}>No se encontraron clientes con los filtros aplicados.</td></tr>
                             ) : (
-                                filteredClientes.map(c => (
+                                currentClientes.map(c => (
                                     <tr key={c.idCliente}>
                                         <td>{c.ruc}</td>
                                         <td>{c.razonSocial}</td>
@@ -263,6 +274,28 @@ const Clientes = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {totalPages > 1 && (
+                    <div className="pagination-bar">
+                        <button 
+                            disabled={currentPage === 1} 
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="pagination-btn"
+                        >
+                            Anterior
+                        </button>
+                        <span className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages} 
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="pagination-btn"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
             </div>
         );
     }
@@ -273,7 +306,7 @@ const Clientes = () => {
             
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">{editingId ? 'Editar Cliente' : 'Alta de Nuevo Cliente'}</h1>
+                    <h1 className="page-title">{editingId ? 'Editar Cliente' : 'Registrar Nuevo Cliente'}</h1>
                     <p className="page-subtitle">Complete la información requerida para dar de alta o modificar un cliente y su contacto principal.</p>
                 </div>
                 <div className="header-actions">
@@ -339,14 +372,16 @@ const Clientes = () => {
                         />
                         {errors.correo && <span className="error-message">{errors.correo.message}</span>}
                     </div>
-                    <div className="form-group">
-                        <label>Estado <span style={{color: 'red'}}>*</span></label>
-                        <select className={errors.estado ? 'input-error' : ''} {...register('estado')}>
-                            <option value="Activo">Activo</option>
-                            <option value="Inactivo">Inactivo</option>
-                        </select>
-                        {errors.estado && <span className="error-message">{errors.estado.message}</span>}
-                    </div>
+                    {editingId && (
+                        <div className="form-group">
+                            <label>Estado <span style={{color: 'red'}}>*</span></label>
+                            <select className={errors.estado ? 'input-error' : ''} {...register('estado')}>
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select>
+                            {errors.estado && <span className="error-message">{errors.estado.message}</span>}
+                        </div>
+                    )}
                 </div>
             </div>
 

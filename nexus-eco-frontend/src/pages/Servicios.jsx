@@ -28,6 +28,11 @@ const Servicios = () => {
     const [endDate, setEndDate] = useState('');
     const [clientFilter, setClientFilter] = useState('ALL');
     const [filterClientes, setFilterClientes] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, statusFilter, minAmount, maxAmount, startDate, endDate, clientFilter]);
     
     // Dropdown Data
     const [clientes, setClientes] = useState([]);
@@ -393,7 +398,7 @@ const Servicios = () => {
                 margin:       [10, 10, 10, 10],
                 filename:     `Contrato_Econexus_${formatOS(ord.idOrdenServicio)}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             
@@ -613,6 +618,12 @@ const Servicios = () => {
             return matchesSearch && matchesStatus && matchesMin && matchesMax && matchesStartDate && matchesEndDate && matchesClient;
         });
 
+        const itemsPerPage = 15;
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        const currentOrdenes = filteredOrdenes.slice(indexOfFirstItem, indexOfLastItem);
+        const totalPages = Math.ceil(filteredOrdenes.length / itemsPerPage);
+
         const handleClearFilters = () => {
             setSearchQuery('');
             setStatusFilter('ALL');
@@ -741,7 +752,7 @@ const Servicios = () => {
                             ) : filteredOrdenes.length === 0 ? (
                                 <tr><td colSpan="6" style={{ textAlign: 'center' }}>No se encontraron órdenes con los filtros aplicados.</td></tr>
                             ) : (
-                                filteredOrdenes.map(ord => {
+                                currentOrdenes.map(ord => {
                                     const canEditDelete = ord.estadoOrden === 'PENDIENTE' || ord.estadoOrden === 'EN_PROCESO';
                                     return (
                                         <tr key={ord.idOrdenServicio}>
@@ -782,6 +793,28 @@ const Servicios = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {totalPages > 1 && (
+                    <div className="pagination-bar">
+                        <button 
+                            disabled={currentPage === 1} 
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="pagination-btn"
+                        >
+                            Anterior
+                        </button>
+                        <span className="pagination-info">
+                            Página {currentPage} de {totalPages}
+                        </span>
+                        <button 
+                            disabled={currentPage === totalPages} 
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="pagination-btn"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
 
                 {/* Details Modal */}
                 {showDetailsModal && selectedOrden && (
@@ -964,7 +997,7 @@ const Servicios = () => {
                         </div>
 
                         <div className="form-group mb-20">
-                            <label>Estado de la Orden (Automatizado)</label>
+                            <label>Estado de la Orden</label>
                             <input 
                                 type="text" 
                                 readOnly 

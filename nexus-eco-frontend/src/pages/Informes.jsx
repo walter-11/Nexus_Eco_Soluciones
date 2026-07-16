@@ -17,6 +17,11 @@ const Informes = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [typeFilter, setTypeFilter] = useState('ALL');
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, typeFilter, statusFilter]);
 
     const [form, setForm] = useState({
         idEjecucionServicio: '',
@@ -398,7 +403,7 @@ const Informes = () => {
                 margin:       [10, 10, 10, 10],
                 filename:     `Reporte_Econexus_${formatInforme(inf.idInformeServicio)}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             
@@ -413,6 +418,26 @@ const Informes = () => {
             alert("No se pudo generar el reporte PDF.");
         }
     };
+
+    // Filtrado de informes
+    const filteredInformes = informes.filter(inf => {
+        const matchesSearch = searchQuery === '' || 
+            (inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.solicitudServicio?.cliente?.razonSocial || '')
+                .toLowerCase().includes(searchQuery.toLowerCase()) ||
+            formatInforme(inf.idInformeServicio).toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const matchesType = typeFilter === 'ALL' || inf.tipoInforme === typeFilter;
+        const matchesStatus = statusFilter === 'ALL' || inf.estadoEnvio === statusFilter;
+        
+        return matchesSearch && matchesType && matchesStatus;
+    });
+
+    const itemsPerPage = 15;
+    const totalPages = Math.ceil(filteredInformes.length / itemsPerPage);
+    const currentInformes = filteredInformes.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     return (
         <div className="informes-page" style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '80px' }}>
@@ -496,53 +521,60 @@ const Informes = () => {
                             <tbody>
                                 {loading ? (
                                     <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Cargando...</td></tr>
+                                ) : currentInformes.length === 0 ? (
+                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No se encontraron informes con los filtros aplicados.</td></tr>
                                 ) : (
-                                    (() => {
-                                        const filteredInformes = informes.filter(inf => {
-                                            const clientName = (inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.solicitudServicio?.cliente?.razonSocial || '').toLowerCase();
-                                            const reportIdStr = formatInforme(inf.idInformeServicio).toLowerCase();
-                                            
-                                            const matchesSearch = clientName.includes(searchQuery.toLowerCase()) || reportIdStr.includes(searchQuery.toLowerCase());
-                                            const matchesType = typeFilter === 'ALL' || inf.tipoInforme === typeFilter;
-                                            const matchesStatus = statusFilter === 'ALL' || inf.estadoEnvio === statusFilter;
-                                            
-                                            return matchesSearch && matchesType && matchesStatus;
-                                        });
-
-                                        if (filteredInformes.length === 0) {
-                                            return <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No se encontraron informes con los filtros aplicados.</td></tr>;
-                                        }
-
-                                        return filteredInformes.map(inf => {
-                                            const clientName = inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.solicitudServicio?.cliente?.razonSocial || 'Cliente';
-                                            const orderId = inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.idOrdenServicio;
-                                            const servicesList = inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.detalles?.map(d => d.tipoServicio?.nombreServicio).filter(Boolean).join(', ') || 'Servicio';
-                                            
-                                            return (
-                                                <tr key={inf.idInformeServicio} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                    <td style={{ padding: '12px 16px', fontWeight: '600' }}>{formatInforme(inf.idInformeServicio)}</td>
-                                                    <td style={{ padding: '12px 16px' }}>{clientName}</td>
-                                                    <td style={{ padding: '12px 16px' }}>{orderId ? formatOS(orderId) : '-'}</td>
-                                                    <td style={{ padding: '12px 16px', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={servicesList}>{servicesList}</td>
-                                                    <td style={{ padding: '12px 16px' }}>{inf.fechaGeneracion ? inf.fechaGeneracion.split('T')[0] : '-'}</td>
-                                                    <td style={{ padding: '12px 16px' }}>
-                                                        <span className={`status-badge status-${inf.estadoEnvio?.toLowerCase()}`} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', display: 'inline-block', textAlign: 'center', width: '90px' }}>
-                                                            {inf.estadoEnvio}
-                                                        </span>
-                                                    </td>
-                                                    <td style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
-                                                        <button className="btn-table-edit" onClick={() => handleEdit(inf)} style={{ padding: '6px 12px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Editar</button>
-                                                        <button className="btn-table-pdf" onClick={() => handleGenerarPDF(inf)} style={{ padding: '6px 12px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}><MdOutlinePictureAsPdf size={14} /> PDF</button>
-                                                        <button className="btn-table-delete" onClick={() => handleDelete(inf.idInformeServicio)} style={{ padding: '6px 12px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Eliminar</button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        });
-                                    })()
+                                    currentInformes.map(inf => {
+                                        const clientName = inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.solicitudServicio?.cliente?.razonSocial || 'Cliente';
+                                        const orderId = inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.idOrdenServicio;
+                                        const servicesList = inf.ejecucionServicio?.planificacionServicio?.ordenServicio?.detalles?.map(d => d.tipoServicio?.nombreServicio).filter(Boolean).join(', ') || 'Servicio';
+                                        
+                                        return (
+                                            <tr key={inf.idInformeServicio} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                <td style={{ padding: '12px 16px', fontWeight: '600' }}>{formatInforme(inf.idInformeServicio)}</td>
+                                                <td style={{ padding: '12px 16px' }}>{clientName}</td>
+                                                <td style={{ padding: '12px 16px' }}>{orderId ? formatOS(orderId) : '-'}</td>
+                                                <td style={{ padding: '12px 16px', maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={servicesList}>{servicesList}</td>
+                                                <td style={{ padding: '12px 16px' }}>{inf.fechaGeneracion ? inf.fechaGeneracion.split('T')[0] : '-'}</td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <span className={`status-badge status-${inf.estadoEnvio?.toLowerCase()}`} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', display: 'inline-block', textAlign: 'center', width: '90px' }}>
+                                                        {inf.estadoEnvio}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
+                                                    <button className="btn-table-edit" onClick={() => handleEdit(inf)} style={{ padding: '6px 12px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Editar</button>
+                                                    <button className="btn-table-pdf" onClick={() => handleGenerarPDF(inf)} style={{ padding: '6px 12px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px' }}><MdOutlinePictureAsPdf size={14} /> PDF</button>
+                                                    <button className="btn-table-delete" onClick={() => handleDelete(inf.idInformeServicio)} style={{ padding: '6px 12px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>Eliminar</button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
                     </div>
+
+                    {totalPages > 1 && (
+                        <div className="pagination-bar" style={{ marginTop: '24px', marginBottom: '24px' }}>
+                            <button 
+                                disabled={currentPage === 1} 
+                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                className="pagination-btn"
+                            >
+                                Anterior
+                            </button>
+                            <span className="pagination-info">
+                                Página {currentPage} de {totalPages}
+                            </span>
+                            <button 
+                                disabled={currentPage === totalPages} 
+                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                className="pagination-btn"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    )}
                 </>
             ) : (
                 <div className="form-container">
